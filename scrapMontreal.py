@@ -4,6 +4,9 @@
 from bs4 import BeautifulSoup
 import urllib.request
 import csv
+import time
+
+start_time = time.time()
 
 #données tirées du site https://www.toutmontreal.com/eetp/eetp.html
 page_name = ["Consultant internet", "Ingénieurs conseils"]
@@ -21,13 +24,14 @@ for resultat_cat in resultats_categorie:
     page_name.append(nom_cat)
     url_page.append(url_cat)
 
-
 #creation table 
-    lignes = [] 
-    lignes.append(["Nom","Domaine","Adresse","Site","URL Fiche"])
+lignes = [] 
+lignes.append(["Nom","Domaine","Adresse","Site","URL Fiche","Contact"])
 
-#pour chaque url   
-i=0
+#pour chaque url  
+i = 0 
+j = 0
+k = 0
 for url in url_page:
     #renvoie l'html de la page dans "page"
     page = urllib.request.urlopen(url)
@@ -37,7 +41,7 @@ for url in url_page:
     #recherche dans la liste
     colonne = soup.find('ol')
     resultats = colonne.find_all('li')
-
+    
     #tri des résultats non-nuls 
     for resultat in resultats:
         try:
@@ -56,17 +60,40 @@ for url in url_page:
             url_fiche = resultat.find("span", attrs={"class":"petit"}).find("a").get("href")
         except:
             url_fiche = ""
+        
         domaine = page_name[i]
 
+        try:
+            contact = ""
+            page_contact = urllib.request.urlopen(url_fiche)
+            soup_contact = BeautifulSoup(page_contact, "html.parser")
+            colonne_contact = soup_contact.find("div")
+            resultats_contact = colonne_contact.find_all("li")
+            for r in resultats_contact:
+                if str(r).find("@")>0:
+                    contact = r.find("a").get("href").replace("mailto:", "")
+                    k+=1
+            resultats_contact.clear()
+        except:
+            contact = ""
+
+        ligne = [nom,domaine,adresse,site,url_fiche,contact]
+
+
         #ajout des données dans lignes
-        lignes.append([nom,domaine,adresse,site, url_fiche])
-    
+        lignes.append(ligne)
+        print(j, " entreprises traitées", end="\r")
+        j+=1
+
     resultats.clear()
-    print(i)
-    i+=1
+    i += 1
 
 
 #création du csv
-with open('ListeEntrepriseMontreal.csv','w', newline='') as f_output:
+with open('listeEntrepriseMontreal.csv','w', newline='') as f_output:
     csv_output = csv.writer(f_output)
     csv_output.writerows(lignes)
+
+print("Nombre d'entreprises traitées = " + str(j) )
+print("Nombre de contacts trouvés = " + str(k) )
+print("Temps d'execution = " + str(time.time() - start_time) + " secondes")
